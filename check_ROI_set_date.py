@@ -10,7 +10,7 @@ import matplotlib as plt
 siganl_data_3099 = pd.read_pickle('result_3099.pickle')
 siganl_data_3099.dropna(axis=1, thresh=1.00, inplace=True) # 구매신호가 발생하지 않은 종목 drop
 
-siganl_data_3099 = siganl_data_3099.iloc[800:1110,:]
+siganl_data_3099 = siganl_data_3099.iloc[1844:2092,:]
 
 def ROI(initial, end):
     return round((((end/initial)-1) * 100), 2)
@@ -26,20 +26,34 @@ holding_day = 40 # TODO 보유일 수 설정
 print('전체 종목 수:', len(siganl_data_3099.columns[2:]))
 
 count = 0
+
 for col in tqdm(siganl_data_3099.columns[2:]):
 
-    data_origin = siganl_data_3099.loc[:,col].dropna() # 구매 신호 이후 데이터만 남김
+    data_origin = siganl_data_3099.loc[:,['signal',col]].dropna() # 구매 신호 이후 데이터만 남김
 
-    if len(data_origin) < holding_day:
+    # first_sig_idx = data_origin[data_origin['signal'].str.contains(str(col))].index[0]
+    # 120 종목 시그널에도 1이 포함되서 안될듯
+    print('첫 for문',col)
+    for i in data_origin.index:
+        val = data_origin._get_value(i, 'signal')
+        print(col)
+        if str(col) in val:
+            start_idx = i
+            print('스타트',start_idx)
+            break
+
+
+    if len(data_origin.loc[start_idx:start_idx+holding_day]) < holding_day:
         # 구매신호 발생 후 종가 데이터 수가 목표 보유 일 수보다 적은 종목 pass
         continue
     else:
         count += 1 # 테스트 종목 수 카운트
-        data = data_origin.iloc[:holding_day].reset_index(drop=True)
+        data = data_origin.loc[start_idx:start_idx+holding_day, col].reset_index(drop=True)
         initial = data.iloc[0] # 구매 신호 발생 시 종가 (구매가)
 
         # 구매 후 설정 보유기간 동안 최대 수익률 및 해당 일 수
         end = data.max()
+
         end_idx = data.index[data == end][0]
         max_value[col] = ROI(initial, end)
         max_value_day[col] = end_idx + 1

@@ -7,10 +7,12 @@ import matplotlib as plt
 #TODO 각 종목별 종가 기록 그래프
 
 # siganl_data_3099 = pd.read_pickle('C:/Users/soso6/Documents/GitHub/Algorithm trading/result/result_3099.pickle')
-siganl_data_3099 = pd.read_pickle('result_3099.pickle')
-siganl_data_3099.dropna(axis=1, thresh=1.00, inplace=True) # 구매신호가 발생하지 않은 종목 drop
+signal_data_3099 = pd.read_pickle('result_3099.pickle')
+signal_data_3099.dropna(axis=1, thresh=1.00, inplace=True) # 구매신호가 발생하지 않은 종목 drop
 
-siganl_data_3099 = siganl_data_3099.iloc[1844:2092,:]
+
+signal_data_3099 = signal_data_3099.iloc[1906:2092, :]
+# siganl_data_3099 = siganl_data_3099.iloc[:]
 
 def ROI(initial, end):
     return round((((end/initial)-1) * 100), 2)
@@ -23,27 +25,36 @@ roi = {}
 roi_day = {}
 holding_day = 40 # TODO 보유일 수 설정
 
-print('전체 종목 수:', len(siganl_data_3099.columns[2:]))
+print('전체 종목 수:', len(signal_data_3099.columns[2:]))
 
 count = 0
+start_idx = None
 
-for col in tqdm(siganl_data_3099.columns[2:]):
+for col in tqdm(signal_data_3099.columns[2:]):
 
-    data_origin = siganl_data_3099.loc[:,['signal',col]].dropna() # 구매 신호 이후 데이터만 남김
+    data_origin = signal_data_3099.loc[:, ['signal', col]].dropna() # 구매 신호 이후 데이터만 남김
 
     # first_sig_idx = data_origin[data_origin['signal'].str.contains(str(col))].index[0]
     # 120 종목 시그널에도 1이 포함되서 안될듯
-    print('첫 for문',col)
+
     for i in data_origin.index:
         val = data_origin._get_value(i, 'signal')
-        print(col)
-        if str(col) in val:
-            start_idx = i
-            print('스타트',start_idx)
+        if type(val) == int:
+            if int(col) == val:
+                start_idx = i
+
+                break
+        else:
+            val = val.split('_')
+            if str(col) in val:
+                start_idx = i
+
             break
 
+    if start_idx == None:
+        continue
 
-    if len(data_origin.loc[start_idx:start_idx+holding_day]) < holding_day:
+    elif len(data_origin.loc[start_idx:start_idx+holding_day]) < holding_day:
         # 구매신호 발생 후 종가 데이터 수가 목표 보유 일 수보다 적은 종목 pass
         continue
     else:

@@ -1,18 +1,24 @@
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+import os
 import matplotlib as plt
 
 # 첫 신호 발생 날로만 기준잡음
 #TODO 각 종목별 종가 기록 그래프
+#TODO 코인은 장기로 봤을 때 안걸림
 
-# siganl_data_3099 = pd.read_pickle('C:/Users/soso6/Documents/GitHub/Algorithm trading/result/result_3099.pickle')
+siganl_data_3099 = pd.read_pickle('C:/Users/soso6/Documents/GitHub/Algorithm trading/result/result_3099.pickle')
+coin_path = 'C:\\Users\\soso6\\Documents\\GitHub\\Algorithm trading\\result\\Strong_complete\\coin\\'
+stock_path = 'C:\\Users\\soso6\\Documents\\GitHub\\Algorithm trading\\result\\Strong_complete\\stock\\'
+coin_file = os.listdir(coin_path)
+stock_file = os.listdir(stock_path)
 signal_data_3099 = pd.read_pickle('result_3099.pickle')
 signal_data_3099.dropna(axis=1, thresh=1.00, inplace=True) # 구매신호가 발생하지 않은 종목 drop
 
 
 signal_data_3099 = signal_data_3099.iloc[1906:2092, :]
-# siganl_data_3099 = siganl_data_3099.iloc[:]
+siganl_data_3099 = siganl_data_3099.iloc[:]
 
 def ROI(initial, end):
     return round((((end/initial)-1) * 100), 2)
@@ -42,8 +48,8 @@ for col in tqdm(signal_data_3099.columns[2:]):
         if type(val) == int:
             if int(col) == val:
                 start_idx = i
-
                 break
+
         else:
             val = val.split('_')
             if str(col) in val:

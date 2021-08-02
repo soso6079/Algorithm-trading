@@ -15,7 +15,7 @@ import copy
 import time
 
 
-# Create a Stratey
+# 매수 전략
 class Strong_complete(bt.Strategy): # bt.Strategy를 상속한 class로 생성해야 함.
 
 
@@ -51,6 +51,10 @@ class Strong_complete(bt.Strategy): # bt.Strategy를 상속한 class로 생성�
             if i % 3 == 0:# daily data
                 self.ind_dict[num+'_sto_daily_20'] = Stochastic_slow_daeshin(self.datas[i])
                 self.ind_dict[num+'_sma_vol_daily_20'] = bt.ind.SMA(self.datas[i].volume, period=20)
+                self.ind_dict[num+'_sma_daily_448'] = bt.ind.SMA(self.datas[i], period=448)
+                self.ind_dict[num+'_sma_daily_120'] = bt.ind.SMA(self.datas[i], period=120)
+                self.ind_dict[num+'_sma_daily_224'] = bt.ind.SMA(self.datas[i], period=224)
+                self.ind_dict[num+'_sma_daily_20'] = bt.ind.SMA(self.datas[i], period=20)
 
             elif i % 3 == 1:# weekly data
                 self.ind_dict[num+'_sto_weekly_20'] = Stochastic_slow_daeshin(self.datas[i])
@@ -79,9 +83,9 @@ class Strong_complete(bt.Strategy): # bt.Strategy를 상속한 class로 생성�
 
     def next(self):
 
-        if self.holding.keys(): #보유하고 있는 주식이 있으면
-            for i in self.holding.keys():
-                self.holding[i] += 1 #보유 일수 증가
+        # if self.holding.keys(): #보유하고 있는 주식이 있으면
+        #     for i in self.holding.keys():
+        #         self.holding[i] += 1 #보유 일수 증가
 
         # 최대 손익률 계산용 날짜 기록
         # self.record_date.append(self.datas[0].datetime.date(0).isoformat())
@@ -95,7 +99,7 @@ class Strong_complete(bt.Strategy): # bt.Strategy를 상속한 class로 생성�
             data_idx = i * 3
             cond_A = self.ind_dict[str(i)+'_sto_weekly_20'].percK[0] > self.ind_dict[str(i)+'_sto_weekly_20'].percK[-1]
             cond_B = self.ind_dict[str(i)+'_sto_weekly_20'].percK[0] >= self.ind_dict[str(i)+'_sto_weekly_20'].percD[0]
-            cond_C = self.ind_dict[str(i)+'_sto_weekly_5'].percK[0] <= 25
+            cond_C = self.ind_dict[str(i)+'_sto_weekly_5'].percK[0] <= 46
             cond_D = self.ind_dict[str(i)+'_sto_monthly_20'].percD[0] > self.ind_dict[str(i)+'_sto_monthly_20'].percD[-1]
             cond_E = self.ind_dict[str(i)+'_sto_monthly_5'].percD[0] > self.ind_dict[str(i)+'_sto_monthly_5'].percD[-1]
             cond_F = self.ind_dict[str(i)+'_MACD_monthly'].macd[0] > self.ind_dict[str(i)+'_MACD_monthly'].macd[-1]
@@ -103,14 +107,14 @@ class Strong_complete(bt.Strategy): # bt.Strategy를 상속한 class로 생성�
             cond_H = -900 <= self.ind_dict[str(i)+'_MACD_weekly'].macd[0] <= 500
             cond_I = self.ind_dict[str(i)+'_sto_weekly_20'].percK[0] <= 68
             cond_J = self.ind_dict[str(i)+'_sto_daily_20'].percK[0] <= 36
-            cond_K = self.ind_dict[str(i)+'_sma_weekly_20'] < self.datas[data_idx+1].close[0] #20일 지지
+            cond_K = self.ind_dict[str(i)+'_sma_weekly_20'][0] < self.datas[data_idx+1].close[0] #20일 지지
             cond_L = self.ind_dict[str(i)+'_sto_weekly_18'].percK[0] > self.ind_dict[str(i)+'_sto_weekly_18'].percK[-1]
-            cond_M = 100000 <= self.ind_dict[str(i)+'_sma_vol_daily_20'] <= 999999999
+            cond_M = 100000 <= self.ind_dict[str(i)+'_sma_vol_daily_20'][0] <= 999999999
 
             if cond_A and cond_B and cond_C and cond_D and \
-                    cond_E and cond_G and cond_H and \
+                    cond_E and cond_G and cond_H and cond_F and\
                     cond_I and cond_J and cond_K and cond_L and cond_M:
-                print('종목 번호',i)
+                # print('종목 번호',i)
                 close = self.datas[data_idx].close[0] # 종가 값
                 size = int(self.broker.getcash() / close) # 최대 구매 가능 개수
                 # size = int(size/2)z
@@ -119,7 +123,7 @@ class Strong_complete(bt.Strategy): # bt.Strategy를 상속한 class로 생성�
 
                 self.buy(size=size) # 매수 size = 구매 개수 설정
 
-                self.log('BUY CREATE, %.2f' % self.datas[data_idx].close[0])
+                # self.log('BUY CREATE, %.2f' % self.datas[data_idx].close[0])
 
                 # 보유기간 세기 위해
                 self.holding[self.stock_num] = 0 #주식 구매 시 key 추가
@@ -129,6 +133,10 @@ class Strong_complete(bt.Strategy): # bt.Strategy를 상속한 class로 생성�
                 self.record[-1].append(self.datas[data_idx].close[0])
                 self.record[-1].append(self.datas[data_idx].high[0])
                 self.record[-1].append(self.datas[data_idx].low[0])
+                self.record[-1].append(self.ind_dict[str(i)+'_sma_daily_448'][0])
+                self.record[-1].append(self.ind_dict[str(i)+'_sma_daily_120'][0])
+                self.record[-1].append(self.ind_dict[str(i)+'_sma_daily_224'][0])
+                self.record[-1].append(self.ind_dict[str(i)+'_sma_daily_20'][0])
 
                 if self.record[-1][1] == None:
                     self.record[-1][1] = str(self.name_list[i])
@@ -138,35 +146,31 @@ class Strong_complete(bt.Strategy): # bt.Strategy를 상속한 class로 생성�
 
 
             else:#구매조건이 아닐 경우
-
                 if self.date_count == 0:
-                    self.record[0].append(None)
-                    self.record[0].append(None)
-                    self.record[0].append(None)
+                    for col in range(7):
+                        self.record[0].append(None)
 
-                #     self.record[i+1].append(None)
                 elif self.record[-2][i+self.default_col] != None: # TODO 전날 구매했으면 종가 계속 기록
 
                     self.record[-1].append(self.datas[data_idx].close[0]) #종가 기록
                     self.record[-1].append(self.datas[data_idx].high[0]) #고가 기록
                     self.record[-1].append(self.datas[data_idx].low[0])  #저가 기록
-
-                elif False: # 매도 했으면 종가 기록 stop
-                    pass
+                    self.record[-1].append(self.ind_dict[str(i)+'_sma_daily_448'][0])
+                    self.record[-1].append(self.ind_dict[str(i)+'_sma_daily_120'][0])
+                    self.record[-1].append(self.ind_dict[str(i)+'_sma_daily_224'][0])
+                    self.record[-1].append(self.ind_dict[str(i)+'_sma_daily_20'][0])
                 else: # 보유도 안하고 구매도 안했으면 None 기록
-
-                    self.record[-1].append(None)
-                    self.record[-1].append(None)
-                    self.record[-1].append(None)
+                    for col in range(7):
+                        self.record[-1].append(None)
 
         # else: # not in position
-        if self.holding.keys():  #보유하고 있는 주식이 있으면
-            key_list = copy.deepcopy(list(self.holding.keys()))
-            for i in key_list:
-                if self.holding[i] >= 60: #보유 일(봉)수
-                    self.close() # 매도
-                    # self.log('SELL CREATE, %.2f' % self.datas[i].close[0])
-                    del self.holding[i]
+        # if self.holding.keys():  #보유하고 있는 주식이 있으면
+        #     key_list = copy.deepcopy(list(self.holding.keys()))
+        #     for i in key_list:
+        #         if self.holding[i] >= 60: #보유 일(봉)수
+        #             self.close() # 매도
+        #             # self.log('SELL CREATE, %.2f' % self.datas[i].close[0])
+        #             del self.holding[i]
 
         # 최대 손익률 계산용 결과 생성
         # if self.record[-1][0] == '2021-07-13':
@@ -343,3 +347,5 @@ class Strong_complete_short(bt.Strategy): # bt.Strategy를 상속한 class로 �
             # result.to_pickle('result/result_test.pickle')
 
         self.date_count += 1
+
+# 매도 전략

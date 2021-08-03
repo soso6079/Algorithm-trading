@@ -10,22 +10,15 @@ from tqdm import tqdm
 # TODO 각 종목별 종가 기록 그래프
 # TODO 코인은 장기로 봤을 때 안걸림
 
-# siganl_data_3099 = pd.read_pickle('C:/Users/soso6/Documents/GitHub/Algorithm trading/result/result_3099.pickle')
-coin_path = 'C:\\Users\\soso6\\Documents\\GitHub\\Algorithm trading\\result\\Strong_short\\coin\\'
-stock_path = 'C:\\Users\\soso6\\Documents\\GitHub\\Algorithm trading\\result\\Strong_complete_0802\\stock\\'
+
+stock_path = 'result/MR_530_0803_v3\\stock\\'
 item_path = 'C:\\Users\\soso6\\Documents\\GitHub\\Algorithm trading\\stock_data\\CYBOS\\default\\stockitems_analysis.pickle'
 item = pd.read_pickle(item_path)
-coin_file = os.listdir(coin_path)
 stock_file = os.listdir(stock_path)
-
-
-# signal_data_3099 = pd.read_pickle('result_3099.pickle')
-# signal_data_3099.dropna(axis=1, thresh=1.00, inplace=True) # 구매신호가 발생하지 않은 종목 drop
 
 
 def ROI(initial, end):
     return round((((end / initial) - 1) * 100), 2)
-
 
 def get_outlier(df=None, column=None, weight=1.5):
     # target 값과 상관관계가 높은 열을 우선적으로 진행
@@ -41,7 +34,6 @@ def get_outlier(df=None, column=None, weight=1.5):
     outlier_idx = df[column][(df[column] < lowest) | (df[column] > highest)].index
     return outlier_idx
 
-
 def remove_outlier(df=None, column=None, weight=1.5):
     # target 값과 상관관계가 높은 열을 우선적으로 진행
     quantile_25 = np.percentile(df[column].values, 25)
@@ -56,7 +48,6 @@ def remove_outlier(df=None, column=None, weight=1.5):
     outlier_idx = df[column][(df[column] < lowest) | (df[column] > highest)].index
     return outlier_idx
 
-
 max_value = {}
 max_value_day = {}
 min_value = {}
@@ -65,17 +56,17 @@ roi = {}
 roi_day_high = {}
 roi_day_low = {}
 date_buy = {}
+date_sell = {}
+term_holding = {}
 is_G_B = {}
 stock_name = {}
-holding_day = 20  # 보유일 수 설정
+holding_day = 60  # 보유일 수 설정
 start_date = '2019-01-01'
 end_date = '2019-12-31'
-upper_ROI = 20  # 익절선
-lower_ROI = -15  # 손절선
+filename = 'MR530_ver3_M1'
 save = True
-filename = 'Strong_종목'
-
 filename += '.csv'
+
 count = 0
 
 for file in tqdm(stock_file):
@@ -85,23 +76,23 @@ for file in tqdm(stock_file):
     data = data[start_date:end_date].copy()
 
     data.dropna(inplace=True, thresh=1, axis=1)
-    if len(data.columns) in (0, 8):  # 구매신호 없는 종목은 skip
+    if len(data.columns) in (0, 10):  # 구매신호 없는 종목은 skip
         continue
 
     idx_count = []
     for i, idx in enumerate(data.index):
-        val = data._get_value(idx, data.columns[0])  # 시그널 체크
+        val = data._get_value(idx, 'signal')  # 시그널 체크
 
-        if val != None:
+        if not pd.isnull(val):
             start_idx = i  # 해당 연도 내에 첫 구매신호만 포착
             idx_count.append(1)
 
-            if len(idx_count) == 3:
+            if len(idx_count) == 1:
                 break
         else:
             idx_count = []
     #
-    if len(idx_count) != 3:
+    if len(idx_count) != 1:
         continue
 
     if start_idx == None:
@@ -110,51 +101,77 @@ for file in tqdm(stock_file):
         continue
     else:
         count += 1
-        date_buy[file] = idx
-
+        date_buy[file] = idx # 매수 날짜
+        if 'sma_10' not in data.columns:
+            data['sma_10'] = data[file[:-7]].rolling(10).mean() # 데이터에 sma_10이 없을 때만 할것
+        else:
+            pass
+        if 'sma_5' not in data.columns:
+            data['sma_5'] = data[file[:-7]].rolling(5).mean() # 데이터에 sma_10이 없을 때만 할것
+        else:
+            pass
         data = data.iloc[start_idx:start_idx + holding_day].copy()
 
         buy_price = data._get_value(data.index[0], data.columns[1])
 
         continuous_sma = []
-        watch_loss = []
+        watch_profit = 0
+        watch_loss = 0
         stock_name[file] = item[item['code'] == file[:-7]]['name'].iloc[0]
-        for num ,p_idx in enumerate(data.index):  # 익절선, 손절선, 최종 보유일 이후 테스트
+        holding_count = 0
+        for p_idx in data.index:  # 익절선, 손절선, 최종 보유일 이후 테스트
             now_close = data._get_value(p_idx, file[:-7])
             now_high = data._get_value(p_idx, 'high')
             now_low = data._get_value(p_idx, 'low')
-            now_sma_w_20 = data._get_value(p_idx, 'sma_w_20')
-
-
-            # 손절선 익절선
-            roi_now_high = ROI(buy_price, now_high)
-            roi_now_low = ROI(buy_price, now_low)
+            now_sma_448 = data._get_value(p_idx, 'sma_448')
+            now_sma_120 = data._get_value(p_idx, 'sma_120')
+            now_sma_224 = data._get_value(p_idx, 'sma_224')
+            now_sma_20 = data._get_value(p_idx, 'sma_20')
+            now_sma_10 = data._get_value(p_idx, 'sma_10')
+            now_sma_5 = data._get_value(p_idx, 'sma_5')
 
             if p_idx == data.index[-1]: # 보유기간 지남
                 roi[file] = ROI(buy_price, now_close)
                 is_G_B[file] = '보유기간'
+                date_sell[file] = p_idx
+                term_holding[file] = holding_count
                 break
 
-            if roi_now_high >= upper_ROI:
-                roi[file] = upper_ROI
-                is_G_B[file] = '익절'
-                break
+            if now_high >= now_sma_448*0.95:
+                watch_profit = 1
 
-
-            if data.loc[data.index[num+1],'sma_w_20'] != data.loc[data.index[num],'sma_w_20']: # 주의 마지막 날
-                if now_low < now_sma_w_20:
-                    watch_loss.append(1)
+            if watch_profit == 1:
+                if now_high >= now_sma_448 * 1.1:
+                    roi[file] = ROI(buy_price, now_sma_448*1.1)
+                    is_G_B[file] = '익절'
+                    date_sell[file] = p_idx
+                    term_holding[file] = holding_count
+                    break
                 else:
-                    watch_loss = []
-            if watch_loss == 2:
-                roi[file] = ROI(buy_price, now_low)
-                is_G_B[file] = "손절"
+                    if now_close < now_sma_10:
+                        roi[file] = ROI(buy_price, now_close)
+                        is_G_B[file] = '익절 감시 후 매도'
+                        date_sell[file] = p_idx
+                        term_holding[file] = holding_count
+                        break
+
+
+
+            if now_low <= now_sma_20: # 손절 (n일 연속 조건 count)
+                continuous_sma.append(1)
+            elif now_low > now_sma_20:
+                continuous_sma = []
+
+            if continuous_sma == [] : # 손절
+                continue
+            if len(continuous_sma) == 10: # n일
+                roi[file] = ROI(buy_price, now_close)
+                is_G_B[file] = '손절'
+                date_sell[file] = p_idx
+                term_holding[file] = holding_count
                 break
 
-            if roi_now_low < lower_ROI:
-                roi[file] = lower_ROI
-                is_G_B[file] = "손절선"
-                break
+            holding_count += 1
 
         roi_day_high[file] = []
         roi_day_low[file] = []
@@ -174,21 +191,17 @@ min_result = []
 min_day_result = []
 holding_result = []
 for key in list(roi.keys()):
-    # max_result.append(max_value[key])
-    # max_day_result.append(max_value_day[key])
-    # min_result.append(min_value[key])
-    # min_day_result.append(min_value_day[key])
     holding_result.append(roi[key])
-for key in list(roi.keys()):
     max_result.append(np.max(roi_day_high[key]))
     min_result.append(np.min(roi_day_low[key]))
+
 
 print('일자:', start_date, '~', end_date)
 print('테스트 종목 수:', count, '/', len(stock_file))
 print()
 print('보유 일(봉) 수:', holding_day)
-print('익절선:', upper_ROI)
-print('손절선:', lower_ROI)
+# print('익절선:', upper_ROI)
+# print('손절선:', lower_ROI)
 print()
 print('평균 최대 수익:', round(np.average(max_result), 2))  # 평균
 # print('평균 최대 수익 평균 발생 일 수:', round(np.average(max_day_result),2))
@@ -197,23 +210,20 @@ print('평균 최대 손실:', round(np.average(min_result), 2))
 print('평균 최종 수익률:', round(np.average(holding_result), 2))
 print('누계 최종 수익률:', round(np.sum(holding_result), 2))
 
-# print('최대 수익률', max_value)
-# print('최대 손실률', min_value)
-# print('무지성 보유일 손익률', roi)
 
-# TOP 30 손실 종목 정리
 YH_plus = []
 YH_result = []
 holding_result.sort()
 
 for key, value in roi.items():
-    YH_result.append([stock_name[key], value, date_buy[key], is_G_B[key]])
+    YH_result.append([stock_name[key], value, date_buy[key],date_sell[key],
+                      term_holding[key],is_G_B[key]])
 
-column = ['종목명','ROI','매도 날짜','판매 유형']
+column = ['종목명','ROI','매수날짜','매도날짜','보유기간','판매 유형']
 result = pd.DataFrame(YH_result, columns=column)
 # plus_30 = pd.DataFrame(YH_plus, columns=column)
+
 if save == True:
-    result.to_csv(filename, encoding='euc_kr') #TODO 엑셀 파일 생성
+    result.to_csv(filename, encoding='euc_kr')
 else:
     pass
-# plus_30.to_csv('테스트한 익절 손절 조건_plus.csv')

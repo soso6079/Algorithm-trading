@@ -466,10 +466,13 @@ class MR_530(bt.Strategy): # bt.Strategy를 상속한 class로 생성해야 함.
             cond_M = self.ind_dict[str(i)+'_sto_daily_18'].percK[0] > 45
             cond_N = self.ind_dict[str(i)+'_sto_daily_18'].percD[0] > 35
             cond_O = self.datas[data_idx].close[0] <= self.ind_dict[str(i)+'_sma_daily_448'][0]
+            cond_P = 200000 <= self.ind_dict[str(i) + '_sma_vol_daily_20'][0] <= 999999999 #0803 추가
+            cond_Q = self.datas[data_idx].close[0] * 1.8 < self.ind_dict[str(i) + '_sma_daily_448'][0] # 종가가 더 작은 조건이 ver2
 
 
             if cond_F and cond_G and cond_K and cond_L and\
-                    cond_M and cond_N and cond_O:
+                    cond_M and cond_N and cond_O and cond_P and\
+                cond_Q:
                 # print('종목 번호',i)
                 close = self.datas[data_idx].close[0] # 종가 값
                 size = int(self.broker.getcash() / close) # 최대 구매 가능 개수
@@ -495,17 +498,12 @@ class MR_530(bt.Strategy): # bt.Strategy를 상속한 class로 생성해야 함.
                 self.record[-1].append(self.ind_dict[str(i)+'_sma_daily_20'][0])
                 self.record[-1].append(self.ind_dict[str(i)+'_sma_daily_10'][0])
                 self.record[-1].append(self.ind_dict[str(i)+'_sma_weekly_20'][0])
-
-                if self.record[-1][1] == None:
-                    self.record[-1][1] = str(self.name_list[i])
-                else: #다른 종목도 시그널이 동일한 날짜에 발생했을 때
-                    value = self.record[-1][1]
-                    self.record[-1][1] = str(value)+'_'+str(self.name_list[i])
-
-
+                self.record[-1].append(self.datas[data_idx].volume[0])
+                
+                self.record[-1][1] = 1 #시그널
             else:#구매조건이 아닐 경우
                 if self.date_count == 0:
-                    for col in range(9):
+                    for col in range(10):
                         self.record[0].append(None)
 
                 elif self.record[-2][i+self.default_col] != None: # TODO 전날 구매했으면 종가 계속 기록
@@ -519,8 +517,9 @@ class MR_530(bt.Strategy): # bt.Strategy를 상속한 class로 생성해야 함.
                     self.record[-1].append(self.ind_dict[str(i)+'_sma_daily_20'][0])
                     self.record[-1].append(self.ind_dict[str(i)+'_sma_daily_10'][0])
                     self.record[-1].append(self.ind_dict[str(i)+'_sma_weekly_20'][0])
+                    self.record[-1].append(self.datas[data_idx].volume[0])
                 else: # 보유도 안하고 구매도 안했으면 None 기록
-                    for col in range(9):
+                    for col in range(10):
                         self.record[-1].append(None)
 
 
